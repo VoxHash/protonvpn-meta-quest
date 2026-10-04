@@ -1,13 +1,24 @@
+# Downloaded / e2e artifacts
 downloads/*.apk
 downloads/e2e-*/
 downloads/*.png
 downloads/*.log
 downloads/ui.xml
+
+# Upstream clone + local Gradle props (never commit SDK paths)
 android-app/
-android-app/local.properties
-quest-launcher/local.properties
+**/local.properties
+
+# Quest companion launcher build outputs
 quest-launcher/.gradle/
+quest-launcher/.kotlin/
+quest-launcher/build/
 quest-launcher/**/build/
+
+# IDE / OS
+.idea/
 *.iml
 .DS_Store
+
+# Built packages (attach via GitHub Releases instead)
 *.apk

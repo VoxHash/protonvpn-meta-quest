@@ -1,10 +1,18 @@
 # Changelog
 
-## Unreleased
+## 1.3.0 — 2026-10-04
 
-- Quest product flavor: `applicationIdSuffix` `.quest` → package `ch.protonvpn.android.quest` (Pass-style); Gradle `productionVanillaQuestDebug`
-- Patch `0002-meta-quest-product-flavor.patch`; install/e2e/hardening scripts prefer `.quest` with legacy fallback
-- Companion launcher resolves `.quest` first; CI checks both Quest patches via `tests/test_scripts.sh`
+### Added
+- Quest product flavor: `applicationIdSuffix` `.quest` → package `ch.protonvpn.android.quest` (Pass-style); Gradle `productionVanillaQuestDebug` (`6feb7cd`)
+- Patch `0002-meta-quest-product-flavor.patch`; install/e2e/hardening scripts prefer `.quest` with legacy `ch.protonvpn.android` fallback (`6feb7cd`)
+- Companion launcher resolves `.quest` first; CI checks both Quest patches via `tests/test_scripts.sh` (`6feb7cd`)
+- `scripts/resolve-android-sdk.sh` — pick a writable Android SDK (`$HOME/Android/Sdk` over non-writable `/opt/android-sdk`) for Gradle builds (`116b695`)
+
+### Changed
+- Build scripts (`build-from-source.sh`, `build-quest-launcher.sh`, `fetch-android-app.sh`) source the SDK resolver and write `local.properties` accordingly (`116b695`)
+
+### Fixed
+- Quest companion launcher assemble/install failing when `ANDROID_HOME` pointed at a non-writable system SDK (`116b695`)
 
 ## 1.2.0 — 2026-10-03
 
