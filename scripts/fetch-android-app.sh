@@ -8,5 +8,9 @@ if [[ -d "$TARGET/.git" ]]; then
 fi
 GIT_LFS_SKIP_SMUDGE=1 git -c filter.lfs.smudge= -c filter.lfs.process= -c filter.lfs.required=false \
   clone --depth 1 https://github.com/ProtonVPN/android-app.git "$TARGET"
-echo "sdk.dir=${ANDROID_HOME:-$HOME/Android/Sdk}" > "$TARGET/local.properties"
+# shellcheck source=resolve-android-sdk.sh
+source "$ROOT/scripts/resolve-android-sdk.sh"
+export ANDROID_HOME="$(resolve_android_sdk)"
+export ANDROID_SDK_ROOT="$ANDROID_HOME"
+write_local_properties_sdk "$TARGET/local.properties" "$ANDROID_HOME"
 "$ROOT/scripts/apply-quest-patch.sh"
