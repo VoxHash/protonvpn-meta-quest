@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Enable reboot auto-start + Android Always-on VPN lockdown (real kill switch)
-# on the connected Meta Quest for ch.protonvpn.android.
+# on the connected Meta Quest for ch.protonvpn.android.quest (or legacy package).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SERIAL="$("$ROOT/scripts/quest-device.sh")"
-PKG=ch.protonvpn.android
+PKG="${PROTON_PKG:-$("$ROOT/scripts/proton-pkg.sh" "$SERIAL")}"
 ACT=com.protonvpn.android.redesign.app.ui.MainActivity
 
 echo "== Quest always-on / kill switch / boot autoconnect =="

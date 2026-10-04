@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Proton VPN (Quest)</string>
-    <string name="missing_proton">Proton VPN is not installed. Run scripts/install-quest.sh from the project.</string>
+    <string name="missing_proton">Proton VPN Quest build not installed. Run ./scripts/install-quest.sh (package ch.protonvpn.android.quest).</string>
 </resources>

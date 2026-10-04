@@ -8,8 +8,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Shellcheck-ish syntax
+      - name: Script syntax + Quest patches
         run: |
-          bash -n scripts/*.sh
-          test -f patches/0001-meta-quest-istvcheck.patch
+          bash tests/test_scripts.sh
+          test -f patches/0001-meta-quest-phone-email-auth.patch
+          test -f patches/0002-meta-quest-product-flavor.patch
           test -f LICENSE

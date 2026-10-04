@@ -2,7 +2,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SERIAL="$("$ROOT/scripts/quest-device.sh")"
-PKG=ch.protonvpn.android
+PKG="${PROTON_PKG:-$("$ROOT/scripts/proton-pkg.sh" "$SERIAL")}"
 # Prefer phone MainActivity (email/password). Fallback to RoutingActivity alias.
 ACT=com.protonvpn.android.redesign.app.ui.MainActivity
 adb -s "$SERIAL" shell input keyevent KEYCODE_WAKEUP || true

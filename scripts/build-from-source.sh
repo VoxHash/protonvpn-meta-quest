@@ -8,8 +8,11 @@ export PATH="$JAVA_HOME/bin:$PATH"
 cd "$ROOT/android-app"
 [[ -f local.properties ]] || echo "sdk.dir=$ANDROID_HOME" > local.properties
 "$ROOT/scripts/apply-quest-patch.sh"
-echo "Building productionVanillaOpenSourceDebug (GPL open-source flavor + Quest phone auth) ..."
-./gradlew --no-daemon assembleProductionVanillaOpenSourceDebug
-APK="$(find app/build/outputs/apk -name '*openSource-debug*.apk' | head -1)"
+echo "Building productionVanillaQuestDebug (GPL Quest flavor + phone auth, applicationIdSuffix .quest) ..."
+./gradlew --no-daemon assembleProductionVanillaQuestDebug
+APK="$(find app/build/outputs/apk -name '*quest-debug*.apk' | head -1)"
+if [[ -z "$APK" || ! -f "$APK" ]]; then
+  APK="$(find app/build/outputs/apk -path '*quest*' -name '*.apk' | head -1)"
+fi
 echo "Built: $APK"
 echo "$APK"

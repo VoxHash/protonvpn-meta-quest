@@ -11,7 +11,8 @@ Not affiliated with Proton AG or Meta Platforms. Proton VPN is a trademark of Pr
 
 ## Features
 
-- Builds Proton VPN from source (GPL) with a Meta Quest patch
+- Builds Proton VPN from source (GPL) with Meta Quest patches
+- Quest product flavor (`ch.protonvpn.android.quest`, Pass-style `applicationIdSuffix`)
 - Forces **phone MainActivity + email login** on Quest (never QR/TV as the primary path)
 - Declares `com.oculus.supportedDevices` and enables a real `MainActivity` entry (Horizon OS rejects Proton’s disabled activity-alias launcher)
 - Optional Quest library companion (`dev.voxhash.protonvpn.quest`)
@@ -46,7 +47,7 @@ Arm reboot auto-connect + kill switch:
 ./scripts/install-quest.sh
 ```
 
-This applies `patches/0001-meta-quest-phone-email-auth.patch`, builds `productionVanillaOpenSourceDebug`, installs `ch.protonvpn.android` on the Quest, and launches phone `MainActivity` → email auth (`AddAccountActivity` / `LoginTwoStepActivity`).
+This applies the Quest patches, builds `productionVanillaQuestDebug` (`applicationIdSuffix` `.quest`, Pass-style), installs `ch.protonvpn.android.quest` on the Quest, and launches phone `MainActivity` → email auth (`AddAccountActivity` / `LoginTwoStepActivity`).
 
 ### Optional Quest launcher icon
 

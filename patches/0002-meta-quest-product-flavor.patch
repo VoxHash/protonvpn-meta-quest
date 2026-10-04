@@ -1,0 +1,25 @@
+--- a/app/build.gradle
++++ b/app/build.gradle
+@@ -300,6 +300,13 @@
+             buildConfigField "String", "STORE_SUFFIX", "\"+os\""
+             proguardFile additionalProguard
+         }
++        // Meta Quest packaging (VoxHash / protonvpn-meta-quest) — Pass-style .quest id.
++        quest {
++            dimension "distribution"
++            applicationIdSuffix '.quest'
++            buildConfigField "String", "STORE_SUFFIX", "\"+quest\""
++            proguardFile additionalProguard
++        }
+         dev {
+             dimension "distribution"
+             applicationIdSuffix '.dev'
+@@ -449,7 +456,7 @@
+     includeProguardMapping = true
+     uploadNativeSymbols = true
+     ignoredBuildTypes = ["debug", "benchmarkRelease", "nonMinifiedRelease"]
+-    ignoredFlavors = ["productionVanillaOpenSource"]
++    ignoredFlavors = ["productionVanillaOpenSource", "productionVanillaQuest"]
+ 
+     // We don't want the sentry plugin to add anything to our builds:
+     tracingInstrumentation { enabled = false }

@@ -7,4 +7,4 @@ export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
 ./scripts/launch-quest.sh
 ```
 
-Expected: package `ch.protonvpn.android` installed; phone `MainActivity` / `AddAccountActivity` or `LoginTwoStepActivity` visible in a Quest panel (email login — not QR).
+Expected: package `ch.protonvpn.android.quest` installed; phone `MainActivity` / `AddAccountActivity` or `LoginTwoStepActivity` visible in a Quest panel (email login — not QR).

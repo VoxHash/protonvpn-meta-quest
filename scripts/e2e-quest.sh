@@ -2,7 +2,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SERIAL="$("$ROOT/scripts/quest-device.sh")"
-PKG=ch.protonvpn.android
+PKG="${PROTON_PKG:-$("$ROOT/scripts/proton-pkg.sh" "$SERIAL")}"
 OUT="$ROOT/downloads/e2e-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$OUT"
 

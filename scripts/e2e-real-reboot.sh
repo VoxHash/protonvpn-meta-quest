@@ -3,7 +3,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SERIAL="$("$ROOT/scripts/quest-device.sh")"
-PKG=ch.protonvpn.android
+PKG="${PROTON_PKG:-$("$ROOT/scripts/proton-pkg.sh" "$SERIAL")}"
 ACT=com.protonvpn.android.redesign.app.ui.MainActivity
 OUT="$ROOT/downloads/e2e-real-reboot-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$OUT"
@@ -63,7 +63,7 @@ NC=$(timeout 8 adb -s "$SERIAL" shell "toybox nc -w 3 1.1.1.1 443" 2>&1 || true)
 echo "nc=$NC" | tee "$OUT/nc.txt"
 
 pass=1
-rg -q 'post_always_on=ch.protonvpn.android' "$OUT/post-vpn.txt" || pass=0
+rg -q "post_always_on=$PKG" "$OUT/post-vpn.txt" || pass=0
 rg -q 'post_lockdown=1' "$OUT/post-vpn.txt" || pass=0
 echo "$RULES" | rg -q 'UIDs:' || pass=0
 echo "$NC" | rg -qi 'Permission denied' || pass=0

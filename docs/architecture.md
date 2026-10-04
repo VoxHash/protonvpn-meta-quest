@@ -18,7 +18,7 @@ Quest library / adb
                                                      └──────────────────────────┘
 ```
 
-Quest patch (`patches/0001-meta-quest-phone-email-auth.patch`):
+Quest patches:
 
-1. `IsTvCheck` — Meta Quest devices always return **false** (clear sticky TV prefs); never force `TvMainActivity` / `TvQrLoginActivity`.
-2. Manifest — enable/export `MainActivity`, add `com.oculus.supportedDevices`, landscape auth activities (Pass-style).
+1. `patches/0001-meta-quest-phone-email-auth.patch` — `IsTvCheck` returns **false** on Quest; enable/export `MainActivity`; `com.oculus.supportedDevices`; landscape auth; boot/Always-on reconnect helpers.
+2. `patches/0002-meta-quest-product-flavor.patch` — distribution flavor `quest` with `applicationIdSuffix '.quest'` (Pass-style `ch.protonvpn.android.quest`); Gradle target `productionVanillaQuestDebug`.

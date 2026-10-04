@@ -11,4 +11,6 @@ Email auth (Proton Core, same as Pass):
 
 TV/QR (not the Quest primary path): `com.protonvpn.android.tv.main.TvMainActivity` → `TvQrLoginActivity`
 
+Quest VPN package: `ch.protonvpn.android.quest` (`applicationIdSuffix` `.quest`)
+
 Companion package: `dev.voxhash.protonvpn.quest`

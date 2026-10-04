@@ -16,10 +16,10 @@
 Or install a prebuilt patched APK:
 
 ```bash
-./scripts/install-quest.sh path/to/ProtonVPN-openSource-debug.apk
+./scripts/install-quest.sh path/to/ProtonVPN-quest-debug.apk
 ```
 
-Open-source debug builds are **not** signed with Proton’s release key (expected for Quest sideload).
+Quest flavor debug builds install as `ch.protonvpn.android.quest` and are **not** signed with Proton’s release key (expected for Quest sideload).
 
 ## Quest companion launcher
 
@@ -33,7 +33,7 @@ Open-source debug builds are **not** signed with Proton’s release key (expecte
 ```bash
 ./scripts/fetch-android-app.sh
 ./scripts/build-from-source.sh
-adb install -r -g app/build/outputs/apk/.../*openSource-debug*.apk
+adb install -r -g android-app/app/build/outputs/apk/.../*quest-debug*.apk
 ```
 
 ## Official Proton release APK

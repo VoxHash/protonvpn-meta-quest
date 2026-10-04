@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Quest product flavor: `applicationIdSuffix` `.quest` → package `ch.protonvpn.android.quest` (Pass-style); Gradle `productionVanillaQuestDebug`
+- Patch `0002-meta-quest-product-flavor.patch`; install/e2e/hardening scripts prefer `.quest` with legacy fallback
+- Companion launcher resolves `.quest` first; CI checks both Quest patches via `tests/test_scripts.sh`
+
 ## 1.2.0 — 2026-10-03
 
 - Reboot auto-start: force Quest `tvAutoConnectOnBoot`, enable `AutoConnectBootReceiver` (+ `USER_UNLOCKED`), reconnect via preferred/quick-connect intent

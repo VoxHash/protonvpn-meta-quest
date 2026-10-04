@@ -2,6 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <queries>
+        <package android:name="ch.protonvpn.android.quest" />
         <package android:name="ch.protonvpn.android" />
     </queries>
 
