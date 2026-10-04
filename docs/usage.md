@@ -1,8 +1,6 @@
 # Usage
 
-1. Launch Proton VPN (or the Quest companion).
-2. Sign in via QR (`TvQrLoginActivity`) using a phone browser / Proton account.
-3. When Connect is pressed, Horizon OS shows the Android VPN permission dialog — allow it.
-4. Traffic from the headset routes through Proton’s WireGuard / ProTun / OpenVPN backend.
-
-Do not run a second always-on VPN concurrently; Quest may deny a new `VpnService`.
+1. Launch Proton VPN from the Quest library (or the optional `Proton VPN (Quest)` companion).
+2. Sign in with Proton **email/password** (or SSO). Expected activities: `MainActivity` → `AddAccountActivity` / `LoginTwoStepActivity` — **not** `TvQrLoginActivity`.
+3. After login, tap Connect and accept the Android VPN permission dialog.
+4. Traffic for apps that use the system VPN route goes through Proton VPN.

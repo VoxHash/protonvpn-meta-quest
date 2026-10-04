@@ -1,7 +1,14 @@
-# API surface
+# API / entry points
 
-This packaging does not expose a new network API. It uses Proton VPN Android’s public UX and the same Proton account / VPN backends as [ProtonVPN/android-app](https://github.com/ProtonVPN/android-app).
+Phone entry activity (Quest primary): `com.protonvpn.android.redesign.app.ui.MainActivity`
 
-Companion launcher package: `dev.voxhash.protonvpn.quest`  
-Upstream package: `ch.protonvpn.android`  
-TV entry activity: `com.protonvpn.android.tv.main.TvMainActivity`
+Email auth (Proton Core, same as Pass):
+
+- `me.proton.core.auth.presentation.ui.AddAccountActivity`
+- `me.proton.core.auth.presentation.ui.LoginTwoStepActivity`
+- `me.proton.core.auth.presentation.ui.LoginActivity`
+- `me.proton.core.auth.presentation.ui.LoginSsoActivity`
+
+TV/QR (not the Quest primary path): `com.protonvpn.android.tv.main.TvMainActivity` → `TvQrLoginActivity`
+
+Companion package: `dev.voxhash.protonvpn.quest`

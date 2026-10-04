@@ -21,19 +21,24 @@ grep -q WireguardWrapperService "$OUT/vpn-services.txt"
 grep -q 'GoBackend\$VpnService\|GoBackend$VpnService\|GoBackend' "$OUT/vpn-services.txt" || true
 grep -q ProTunVpnService "$OUT/vpn-services.txt"
 
-echo "== Launch TV UI =="
+echo "== Launch phone / email login UI =="
 "$ROOT/scripts/launch-quest.sh" | tee "$OUT/launch.txt"
-sleep 5
+sleep 8
 pid="$(adb -s "$SERIAL" shell pidof "$PKG" || true)"
 echo "pid=$pid" | tee "$OUT/pid.txt"
 [[ -n "$pid" ]]
 
 echo "== Top activity =="
-# Avoid SIGPIPE under pipefail when head closes early
 adb -s "$SERIAL" shell dumpsys activity activities > "$OUT/activity-raw.txt"
-grep -E 'protonvpn|topResumedActivity|TvMain|TvQr' "$OUT/activity-raw.txt" | head -40 > "$OUT/activity.txt" || true
+grep -E 'protonvpn|topResumedActivity|MainActivity|AddAccount|Login|TvMain|TvQr' "$OUT/activity-raw.txt" | head -60 > "$OUT/activity.txt" || true
 cat "$OUT/activity.txt"
-grep -Eq 'TvMainActivity|TvQrLoginActivity|MainActivity' "$OUT/activity.txt"
+
+# Must reach phone MainActivity or core email auth — NOT QR/TV as the primary path.
+if grep -Eq 'TvQrLoginActivity' "$OUT/activity.txt" && ! grep -Eq 'AddAccountActivity|LoginTwoStepActivity|LoginActivity|redesign.app.ui.MainActivity' "$OUT/activity.txt"; then
+  echo "FAIL: landed on QR/TV login; expected email/password phone UI." >&2
+  exit 1
+fi
+grep -Eq 'redesign.app.ui.MainActivity|AddAccountActivity|LoginTwoStepActivity|LoginActivity|LoginSsoActivity' "$OUT/activity.txt"
 
 echo "== Screenshot =="
 adb -s "$SERIAL" shell screencap -p /sdcard/protonvpn-e2e.png || true
@@ -41,14 +46,19 @@ adb -s "$SERIAL" pull /sdcard/protonvpn-e2e.png "$OUT/screenshot.png" || true
 ls -lh "$OUT/screenshot.png" 2>/dev/null || echo "screenshot optional"
 
 echo "== Login state =="
-if grep -q TvQrLoginActivity "$OUT/activity.txt"; then
-  echo "STATE=awaiting_qr_login" | tee "$OUT/state.txt"
-elif grep -q 'tv.main.TvMainActivity' "$OUT/activity.txt"; then
-  echo "STATE=tv_main" | tee "$OUT/state.txt"
+if grep -q AddAccountActivity "$OUT/activity.txt"; then
+  echo "STATE=awaiting_email_login_add_account" | tee "$OUT/state.txt"
+elif grep -Eq 'LoginTwoStepActivity|LoginActivity' "$OUT/activity.txt"; then
+  echo "STATE=awaiting_email_login" | tee "$OUT/state.txt"
+elif grep -q 'redesign.app.ui.MainActivity' "$OUT/activity.txt"; then
+  echo "STATE=phone_main" | tee "$OUT/state.txt"
+elif grep -q TvQrLoginActivity "$OUT/activity.txt"; then
+  echo "STATE=qr_login_unexpected" | tee "$OUT/state.txt"
+  exit 1
 else
   echo "STATE=running" | tee "$OUT/state.txt"
 fi
 
 echo "E2E artifacts: $OUT"
-echo "PASS: Proton VPN installed, VpnService present, TV UI running on Quest."
-echo "Manual step: scan QR in headset (or sign in) then Connect — approve VPN permission dialog."
+echo "PASS: Proton VPN installed, VpnService present, email login UI on Quest."
+echo "Manual step: sign in with Proton email/password (Quest keyboard), then Connect — approve VPN permission dialog."

@@ -1,10 +1,10 @@
 # FAQ
 
-**Is this the official Proton VPN Quest app?**  
-No. It installs Proton’s official Android APK (or a GPL build) for Meta Quest.
+**Why email login instead of QR?**  
+Standalone Quest cannot scan the TV QR with a phone. Proton Pass on Quest uses email/password (+ SSO) with the virtual keyboard; this project mirrors that. QR only works if the headset is mirrored to a TV.
 
-**Why TV UI?**  
-Horizon OS is not a phone. Proton’s leanback/TV flow (QR login) fits Quest 2D panels and is what we verified running on Quest 3.
+**Why a from-source build?**  
+Official Proton APK disables `MainActivity` and exposes a `RoutingActivity` alias. Horizon OS rejects that alias target. The Quest patch enables a real `MainActivity` and forces `IsTvCheck` false on Oculus/Quest.
 
-**Can I use my Proton account?**  
-Yes — same Proton VPN credentials / QR sign-in as Android TV.
+**Same Proton account?**  
+Yes — email/password or SSO for your Proton VPN account.

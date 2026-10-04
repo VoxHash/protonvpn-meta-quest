@@ -7,12 +7,9 @@ export ANDROID_SDK_ROOT="$ANDROID_HOME"
 export PATH="$JAVA_HOME/bin:$PATH"
 cd "$ROOT/android-app"
 [[ -f local.properties ]] || echo "sdk.dir=$ANDROID_HOME" > local.properties
-# Apply Quest patch if working tree is clean upstream copy
-if ! grep -q 'isMetaQuestDevice' app/src/main/java/com/protonvpn/android/tv/IsTvCheck.kt; then
-  patch -p1 < "$ROOT/patches/0001-meta-quest-istvcheck.patch" || true
-fi
-echo "Building productionVanillaOpenSourceDebug (GPL open-source flavor) ..."
+"$ROOT/scripts/apply-quest-patch.sh"
+echo "Building productionVanillaOpenSourceDebug (GPL open-source flavor + Quest phone auth) ..."
 ./gradlew --no-daemon assembleProductionVanillaOpenSourceDebug
-APK="$(find app/build/outputs/apk -name '*.apk' | head -1)"
+APK="$(find app/build/outputs/apk -name '*openSource-debug*.apk' | head -1)"
 echo "Built: $APK"
 echo "$APK"

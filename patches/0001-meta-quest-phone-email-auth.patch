@@ -1,0 +1,149 @@
+--- a/app/src/main/java/com/protonvpn/android/tv/IsTvCheck.kt
++++ b/app/src/main/java/com/protonvpn/android/tv/IsTvCheck.kt
+@@ -43,11 +43,33 @@
+ ) {
+     private val wasLaunchedForTv: Boolean get() = appFeaturesPrefs.wasLaunchedForTv
+ 
+-    operator fun invoke() = wasLaunchedForTv || isTvByAppContext()
++    operator fun invoke(): Boolean {
++        // Meta Quest / Horizon OS: always use the phone MainActivity + email/password
++        // (and SSO) auth path — the same approach Proton Pass uses on Quest.
++        // QR / TvQrLoginActivity is not usable in the headset without TV mirroring.
++        if (appContext.isMetaQuestDevice()) {
++            clearStickyTvFlagsIfNeeded()
++            return false
++        }
++        return wasLaunchedForTv || isTvByAppContext()
++    }
+ 
+     fun onUiLaunched(isTvIntent: Boolean) {
+-        ProtonLogger.logCustom(LogCategory.APP, "launching UI, is TV intent: $isTvIntent")
+-        appFeaturesPrefs.wasLaunchedForTv = isTvIntent
++        // Never sticky-latch TV mode on Quest even if something starts TvMainActivity.
++        val quest = appContext.isMetaQuestDevice()
++        val effective = if (quest) false else isTvIntent
++        ProtonLogger.logCustom(LogCategory.APP, "launching UI, is TV intent: $effective (quest=$quest)")
++        appFeaturesPrefs.wasLaunchedForTv = effective
++        if (quest) {
++            appFeaturesPrefs.wasTvDetected = false
++        }
++    }
++
++    private fun clearStickyTvFlagsIfNeeded() {
++        if (wasLaunchedForTv || appFeaturesPrefs.wasTvDetected == true) {
++            appFeaturesPrefs.wasLaunchedForTv = false
++            appFeaturesPrefs.wasTvDetected = false
++        }
+     }
+ 
+     private fun isTvByAppContext(): Boolean {
+@@ -80,6 +102,33 @@
+         }
+     }
+ 
++    /**
++     * Meta Quest headsets (Quest 2/3/3S/Pro) report manufacturer Oculus and
++     * oculus.hardware.standalone_vr. Force the phone / email login UI — NOT
++     * TvMainActivity / TvQrLoginActivity — matching Proton Pass on Horizon OS.
++     *
++     * Quest Meta Quest patch — VoxHash Technologies / protonvpn-meta-quest.
++     */
++    private fun Context.isMetaQuestDevice(): Boolean {
++        val manufacturer = Build.MANUFACTURER.orEmpty()
++        val brand = Build.BRAND.orEmpty()
++        val model = Build.MODEL.orEmpty()
++        val device = Build.DEVICE.orEmpty().lowercase()
++        val questDevices = setOf(
++            "monterey", // original Quest
++            "hollywood", // Quest 2
++            "seacliff", // Quest Pro
++            "eureka",   // Quest 3
++            "panther",  // Quest 3S
++        )
++        return manufacturer.equals("Oculus", ignoreCase = true) ||
++            brand.equals("oculus", ignoreCase = true) ||
++            model.contains("Quest", ignoreCase = true) ||
++            device in questDevices ||
++            packageManager.hasSystemFeature("oculus.hardware.standalone_vr") ||
++            packageManager.hasSystemFeature("oculus.software.handtracking")
++    }
++
+     private fun Context.displayDiagonalApprox(): Float {
+         val defaultDisplay = (getSystemService(Context.WINDOW_SERVICE) as WindowManager).defaultDisplay
+         val realMetrics = DisplayMetrics()
+--- a/app/src/main/AndroidManifest.xml
++++ b/app/src/main/AndroidManifest.xml
+@@ -54,15 +54,27 @@
+         android:networkSecurityConfig="@xml/network_security_config"
+         tools:replace="android:theme">
+ 
++        <!-- Meta Quest / Horizon OS — same metadata Proton Pass quest flavor ships. -->
++        <meta-data
++            android:name="com.oculus.supportedDevices"
++            android:value="quest2|questpro|quest3|quest3s" />
++
+         <activity
+             android:name=".redesign.app.ui.MainActivity"
+             android:theme="@style/ProtonTheme.Splash.Vpn.DarkPreferred"
+-            android:exported="false"
+-            android:enabled="false"
++            android:exported="true"
++            android:enabled="true"
+             android:launchMode="singleTask"
+             android:configChanges="uiMode"
++            android:screenOrientation="landscape"
+             android:windowSoftInputMode="adjustResize"
+             tools:ignore="AppLinkUrlError">
++            <!--
++              Quest / Horizon OS (ShellSpatialWindowManagerService) rejects launching via
++              activity-alias when the target MainActivity is disabled. Proton Pass ships a
++              real enabled MainActivity + email auth; mirror that here for Meta Quest.
++              VoxHash Technologies / protonvpn-meta-quest.
++            -->
+             <intent-filter>
+                 <action android:name="android.intent.action.MAIN" />
+                 <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
+@@ -132,10 +144,41 @@
+         <activity
+             android:name="me.proton.core.auth.presentation.ui.AddAccountActivity"
+             android:theme="@style/ProtonTheme.Vpn.AddAccount"
+-            tools:replace="theme" />
++            android:screenOrientation="landscape"
++            android:windowSoftInputMode="adjustResize"
++            tools:replace="theme,android:screenOrientation,android:windowSoftInputMode" />
+         <activity
+             android:name="me.proton.core.auth.presentation.ui.signup.SignupActivity"
+-            android:hardwareAccelerated="@bool/enable_hardware_acceleration_for_signup" />
++            android:hardwareAccelerated="@bool/enable_hardware_acceleration_for_signup"
++            android:screenOrientation="landscape"
++            android:windowSoftInputMode="adjustResize"
++            tools:replace="android:screenOrientation,android:windowSoftInputMode" />
++        <!-- Quest panel email/password + SSO (mirrors Pass quest/AndroidManifest.xml). -->
++        <activity
++            android:name="me.proton.core.auth.presentation.ui.LoginActivity"
++            android:screenOrientation="landscape"
++            android:windowSoftInputMode="adjustResize"
++            tools:replace="android:screenOrientation,android:windowSoftInputMode" />
++        <activity
++            android:name="me.proton.core.auth.presentation.ui.LoginTwoStepActivity"
++            android:screenOrientation="landscape"
++            android:windowSoftInputMode="adjustResize"
++            tools:replace="android:screenOrientation,android:windowSoftInputMode" />
++        <activity
++            android:name="me.proton.core.auth.presentation.ui.LoginSsoActivity"
++            android:screenOrientation="landscape"
++            android:windowSoftInputMode="adjustResize"
++            tools:replace="android:screenOrientation,android:windowSoftInputMode" />
++        <activity
++            android:name="me.proton.core.auth.presentation.ui.SecondFactorActivity"
++            android:screenOrientation="landscape"
++            android:windowSoftInputMode="adjustResize"
++            tools:replace="android:screenOrientation,android:windowSoftInputMode" />
++        <activity
++            android:name="me.proton.core.auth.presentation.ui.TwoPassModeActivity"
++            android:screenOrientation="landscape"
++            android:windowSoftInputMode="adjustResize"
++            tools:replace="android:screenOrientation,android:windowSoftInputMode" />
+         <activity
+             android:name="me.proton.core.presentation.ui.alert.ForceUpdateActivity"
+             android:theme="@style/ProtonTheme.Transparent"

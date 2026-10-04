@@ -1,13 +1,15 @@
 # Architecture
 
+Modeled on Proton Pass for Meta Quest (`proton.android.pass.quest`): phone `MainActivity` + core email/SSO auth activities — not Android TV / QR.
+
 ```
 Quest library / adb
         │
         ▼
-┌───────────────────────┐     Intent (LEANBACK)      ┌──────────────────────────┐
-│ Quest companion       │ ─────────────────────────► │ Proton VPN Android        │
-│ (optional)            │                            │ TvMainActivity            │
-└───────────────────────┘                            │  └─ TvQrLoginActivity     │
+┌───────────────────────┐     Intent (LAUNCHER)      ┌──────────────────────────┐
+│ Quest companion       │ ─────────────────────────► │ Proton VPN (patched)      │
+│ (optional)            │                            │ MainActivity (phone)      │
+└───────────────────────┘                            │  └─ AddAccount / Login* │
                                                      │ VpnConnectionManager      │
                                                      │  ├─ WireguardBackend      │
                                                      │  ├─ OpenVpnBackend        │
@@ -16,4 +18,7 @@ Quest library / adb
                                                      └──────────────────────────┘
 ```
 
-Quest patch: `IsTvCheck.isMetaQuestDevice()` treats Oculus / Quest / `standalone_vr` as TV so phone `MainActivity` forwards to TV UI when building from source.
+Quest patch (`patches/0001-meta-quest-phone-email-auth.patch`):
+
+1. `IsTvCheck` — Meta Quest devices always return **false** (clear sticky TV prefs); never force `TvMainActivity` / `TvQrLoginActivity`.
+2. Manifest — enable/export `MainActivity`, add `com.oculus.supportedDevices`, landscape auth activities (Pass-style).

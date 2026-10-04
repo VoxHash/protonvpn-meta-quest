@@ -5,39 +5,39 @@
 [![Upstream](https://img.shields.io/badge/upstream-ProtonVPN%2Fandroid--app-6d4aff.svg)](https://github.com/ProtonVPN/android-app)
 [![CI](https://img.shields.io/github/actions/workflow/status/VoxHash/protonvpn-meta-quest/ci.yml?branch=main&label=CI)](https://github.com/VoxHash/protonvpn-meta-quest/actions)
 
-Unofficial Meta Quest packaging for **Proton’s official open-source Android VPN app** ([ProtonVPN/android-app](https://github.com/ProtonVPN/android-app), GPL-3.0). Quest has no Play Store Proton VPN listing; this project verifies Proton’s GitHub APK, sideloads it, and always launches the **Android TV / QR login** path that works as a 2D panel on Horizon OS.
+Unofficial Meta Quest packaging for **Proton’s official open-source Android VPN app** ([ProtonVPN/android-app](https://github.com/ProtonVPN/android-app), GPL-3.0). Quest has no Play Store Proton VPN listing; this project applies a small Meta Quest patch so the app opens the **phone email/password (and SSO) sign-in** flow — the same approach [Proton Pass](https://github.com/protonpass/android-pass) uses on Horizon OS (`proton.android.pass.quest`).
 
 Not affiliated with Proton AG or Meta Platforms. Proton VPN is a trademark of Proton AG.
 
 ## Features
 
-- Downloads the official `production-vanilla-direct-release` APK from ProtonVPN GitHub Releases
-- Verifies the published signing certificate SHA-256 before install
-- Sideloads to a connected Meta Quest (USB or wireless ADB)
-- Forces Proton’s TV UI (`TvMainActivity` → `TvQrLoginActivity`) — the working Quest path
-- Optional Quest library launcher (`dev.voxhash.protonvpn.quest`) that opens TV UI in one click
-- Optional from-source build with a Meta Quest `IsTvCheck` patch so the phone launcher also routes to TV UI
+- Builds Proton VPN from source (GPL) with a Meta Quest patch
+- Forces **phone MainActivity + email login** on Quest (never QR/TV as the primary path)
+- Declares `com.oculus.supportedDevices` and enables a real `MainActivity` entry (Horizon OS rejects Proton’s disabled activity-alias launcher)
+- Optional Quest library companion (`dev.voxhash.protonvpn.quest`)
 - Real-device e2e script against connected Quest 3
+- Optional download/verify of Proton’s official GitHub APK (TV/QR only — not the Quest email path)
 
 ## Quick start
 
 ```bash
 # Developer Mode enabled on Quest; adb devices shows Quest 3
+# Requires JDK 17 + Android SDK (see Configuration)
 ./scripts/install-quest.sh
 ./scripts/e2e-quest.sh
 ```
 
-In the headset: scan the QR code to sign in, then Connect and approve the VPN permission dialog.
+In the headset: sign in with your Proton **email and password** using the Quest virtual keyboard, then Connect and approve the VPN permission dialog.
 
 ## Installation
 
-### One-shot (recommended)
+### One-shot (recommended — patched open-source build)
 
 ```bash
 ./scripts/install-quest.sh
 ```
 
-This downloads the latest official Proton VPN Android APK, verifies Proton AG’s signing certificate (`DC:C9:43:9E:…:B8:53`), installs `ch.protonvpn.android`, and launches the TV UI.
+This applies `patches/0001-meta-quest-phone-email-auth.patch`, builds `productionVanillaOpenSourceDebug`, installs `ch.protonvpn.android` on the Quest, and launches phone `MainActivity` → email auth (`AddAccountActivity` / `LoginTwoStepActivity`).
 
 ### Optional Quest launcher icon
 
@@ -46,45 +46,45 @@ This downloads the latest official Proton VPN Android APK, verifies Proton AG’
 ./scripts/install-quest-launcher.sh
 ```
 
-### From-source (GPL fork + Quest patch)
+### Official Proton APK (not for standalone Quest email login)
 
 ```bash
-./scripts/fetch-android-app.sh   # if android-app/ missing
-./scripts/build-from-source.sh
-# then adb install the generated open-source debug APK (resigns; not Proton-signed)
+./scripts/download-official-apk.sh
+./scripts/verify-apk.sh downloads/*.apk
 ```
 
-Requires JDK 17, Android SDK/NDK, and (for full OpenVPN native bits) `swig` / `cmake`.
+The official release keeps `MainActivity` disabled behind an activity-alias. Horizon OS `ShellSpatialWindowManagerService` rejects that launch path. Its TV UI (`TvQrLoginActivity`) only works when the headset is mirrored to a display a phone can scan.
 
 ## How it works (architecture)
 
-Proton VPN Android core (unchanged):
+Proton VPN Android core (unchanged logic):
 
-1. **Auth** — Proton account / TV QR session fork
+1. **Auth** — Proton account email/password + SSO via `me.proton.core.auth` (same stack as Pass)
 2. **VpnConnectionManager** — connects via protocol backends
 3. **WireguardBackend** / **OpenVPN** / **ProTun** — Android `VpnService` tunnels
 4. **ServerManager** — live Proton VPN server list
 
-Quest adaptation:
+Quest adaptation (modeled on Proton Pass `quest` flavor):
 
 | Horizon OS fact | Adaptation |
 | --- | --- |
-| No `FEATURE_LEANBACK` | Launch `TvMainActivity` explicitly; patch `IsTvCheck` for Oculus/Quest |
-| 2D Android panels | TV / leanback layouts fit Quest panels better than phone redesign |
-| Sideload only | Official GitHub APK + ADB install scripts |
-| VpnService supported | WireGuard + ProTun services register and run on Quest 3 (API 34) |
+| QR unusable without TV mirror | `IsTvCheck` returns **false** on Quest → phone UI |
+| Activity-alias + disabled `MainActivity` rejected | Enable/export real `MainActivity` launcher |
+| Pass ships `com.oculus.supportedDevices` | Same metadata: `quest2\|questpro\|quest3\|quest3s` |
+| Auth panels need landscape keyboard | Landscape + `adjustResize` on core auth activities |
+| VpnService supported | WireGuard + ProTun register and run on Quest 3 |
 
 ## Configuration
 
 | Variable / flag | Meaning |
 | --- | --- |
 | `QUEST_SERIAL` | Force ADB serial (otherwise auto-detects `eureka` / Quest 3) |
-| `JAVA_HOME` | JDK 17 for from-source / launcher builds |
+| `JAVA_HOME` | JDK 17 for from-source / launcher builds (default `~/.local/jvm/jdk-17.0.20.1+1`) |
 | `ANDROID_HOME` | Android SDK root (default `~/Android/Sdk`) |
 
 ## Examples
 
-- [Install and launch on Quest 3](docs/examples/example-01.md)
+- [Install and launch email login on Quest 3](docs/examples/example-01.md)
 - [E2E checklist with VPN permission](docs/examples/example-02.md)
 
 ## Roadmap
