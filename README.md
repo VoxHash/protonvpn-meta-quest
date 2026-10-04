@@ -16,6 +16,8 @@ Not affiliated with Proton AG or Meta Platforms. Proton VPN is a trademark of Pr
 - Declares `com.oculus.supportedDevices` and enables a real `MainActivity` entry (Horizon OS rejects Proton’s disabled activity-alias launcher)
 - Optional Quest library companion (`dev.voxhash.protonvpn.quest`)
 - Real-device e2e script against connected Quest 3
+- Reboot auto-start to the logged-in account’s preferred/quick-connect profile
+- Real kill switch via Android Always-on VPN **lockdown** (blocks all non-VPN traffic when the tunnel is down)
 - Optional download/verify of Proton’s official GitHub APK (TV/QR only — not the Quest email path)
 
 ## Quick start
@@ -27,7 +29,14 @@ Not affiliated with Proton AG or Meta Platforms. Proton VPN is a trademark of Pr
 ./scripts/e2e-quest.sh
 ```
 
-In the headset: sign in with your Proton **email and password** using the Quest virtual keyboard, then Connect and approve the VPN permission dialog.
+In the headset: sign in with Proton **email and password**. If you get “incorrect password” despite a known-good account, Horizon’s keyboard likely mangled symbols — focus the password field and run `PROTON_PASSWORD='…' ./scripts/quest-enter-password.sh` from this PC, then Connect and approve VPN permission.
+
+Arm reboot auto-connect + kill switch:
+
+```bash
+./scripts/configure-quest-hardening.sh
+./scripts/e2e-kill-switch.sh && ./scripts/e2e-boot-autoconnect.sh
+```
 
 ## Installation
 
@@ -73,6 +82,8 @@ Quest adaptation (modeled on Proton Pass `quest` flavor):
 | Pass ships `com.oculus.supportedDevices` | Same metadata: `quest2\|questpro\|quest3\|quest3s` |
 | Auth panels need landscape keyboard | Landscape + `adjustResize` on core auth activities |
 | VpnService supported | WireGuard + ProTun register and run on Quest 3 |
+| Reboot must reconnect | `AutoConnectBootReceiver` + Always-on VPN → preferred/quick-connect |
+| Kill switch required | Always-on VPN **lockdown** (system UID filters; no traffic without tunnel) |
 
 ## Configuration
 

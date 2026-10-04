@@ -1,76 +1,5 @@
---- a/app/src/main/java/com/protonvpn/android/tv/IsTvCheck.kt
-+++ b/app/src/main/java/com/protonvpn/android/tv/IsTvCheck.kt
-@@ -43,11 +43,33 @@
- ) {
-     private val wasLaunchedForTv: Boolean get() = appFeaturesPrefs.wasLaunchedForTv
- 
--    operator fun invoke() = wasLaunchedForTv || isTvByAppContext()
-+    operator fun invoke(): Boolean {
-+        // Meta Quest / Horizon OS: always use the phone MainActivity + email/password
-+        // (and SSO) auth path — the same approach Proton Pass uses on Quest.
-+        // QR / TvQrLoginActivity is not usable in the headset without TV mirroring.
-+        if (appContext.isMetaQuestDevice()) {
-+            clearStickyTvFlagsIfNeeded()
-+            return false
-+        }
-+        return wasLaunchedForTv || isTvByAppContext()
-+    }
- 
-     fun onUiLaunched(isTvIntent: Boolean) {
--        ProtonLogger.logCustom(LogCategory.APP, "launching UI, is TV intent: $isTvIntent")
--        appFeaturesPrefs.wasLaunchedForTv = isTvIntent
-+        // Never sticky-latch TV mode on Quest even if something starts TvMainActivity.
-+        val quest = appContext.isMetaQuestDevice()
-+        val effective = if (quest) false else isTvIntent
-+        ProtonLogger.logCustom(LogCategory.APP, "launching UI, is TV intent: $effective (quest=$quest)")
-+        appFeaturesPrefs.wasLaunchedForTv = effective
-+        if (quest) {
-+            appFeaturesPrefs.wasTvDetected = false
-+        }
-+    }
-+
-+    private fun clearStickyTvFlagsIfNeeded() {
-+        if (wasLaunchedForTv || appFeaturesPrefs.wasTvDetected == true) {
-+            appFeaturesPrefs.wasLaunchedForTv = false
-+            appFeaturesPrefs.wasTvDetected = false
-+        }
-     }
- 
-     private fun isTvByAppContext(): Boolean {
-@@ -80,6 +102,33 @@
-         }
-     }
- 
-+    /**
-+     * Meta Quest headsets (Quest 2/3/3S/Pro) report manufacturer Oculus and
-+     * oculus.hardware.standalone_vr. Force the phone / email login UI — NOT
-+     * TvMainActivity / TvQrLoginActivity — matching Proton Pass on Horizon OS.
-+     *
-+     * Quest Meta Quest patch — VoxHash Technologies / protonvpn-meta-quest.
-+     */
-+    private fun Context.isMetaQuestDevice(): Boolean {
-+        val manufacturer = Build.MANUFACTURER.orEmpty()
-+        val brand = Build.BRAND.orEmpty()
-+        val model = Build.MODEL.orEmpty()
-+        val device = Build.DEVICE.orEmpty().lowercase()
-+        val questDevices = setOf(
-+            "monterey", // original Quest
-+            "hollywood", // Quest 2
-+            "seacliff", // Quest Pro
-+            "eureka",   // Quest 3
-+            "panther",  // Quest 3S
-+        )
-+        return manufacturer.equals("Oculus", ignoreCase = true) ||
-+            brand.equals("oculus", ignoreCase = true) ||
-+            model.contains("Quest", ignoreCase = true) ||
-+            device in questDevices ||
-+            packageManager.hasSystemFeature("oculus.hardware.standalone_vr") ||
-+            packageManager.hasSystemFeature("oculus.software.handtracking")
-+    }
-+
-     private fun Context.displayDiagonalApprox(): Float {
-         val defaultDisplay = (getSystemService(Context.WINDOW_SERVICE) as WindowManager).defaultDisplay
-         val realMetrics = DisplayMetrics()
+diff --git a/app/src/main/AndroidManifest.xml b/app/src/main/AndroidManifest.xml
+index 75e58f9..45735af 100644
 --- a/app/src/main/AndroidManifest.xml
 +++ b/app/src/main/AndroidManifest.xml
 @@ -54,15 +54,27 @@
@@ -147,3 +76,354 @@
          <activity
              android:name="me.proton.core.presentation.ui.alert.ForceUpdateActivity"
              android:theme="@style/ProtonTheme.Transparent"
+@@ -376,6 +419,7 @@
+             android:exported="false">
+             <intent-filter>
+                 <action android:name="android.intent.action.BOOT_COMPLETED" />
++                <action android:name="android.intent.action.USER_UNLOCKED" />
+             </intent-filter>
+         </receiver>
+ 
+diff --git a/app/src/main/java/com/protonvpn/android/ProtonApplication.kt b/app/src/main/java/com/protonvpn/android/ProtonApplication.kt
+index 829496f..6633110 100644
+--- a/app/src/main/java/com/protonvpn/android/ProtonApplication.kt
++++ b/app/src/main/java/com/protonvpn/android/ProtonApplication.kt
+@@ -85,6 +85,7 @@ import com.protonvpn.android.vpn.VpnConnectionErrorHandler
+ import com.protonvpn.android.vpn.VpnConnectionObservability
+ import com.protonvpn.android.vpn.VpnErrorUIManager
+ import com.protonvpn.android.vpn.autoconnect.AutoConnectBootReceiverController
++import com.protonvpn.android.vpn.autoconnect.AutoConnectOnBootWorker
+ import com.protonvpn.android.widget.WidgetStateUpdater
+ import com.protonvpn.android.widget.data.WidgetTracker
+ import dagger.hilt.EntryPoint
+@@ -229,6 +230,14 @@ open class ProtonApplication : Application() {
+         dependencies.appMmpObservability.start()
+         dependencies.appOpenMmpTracker.start()
+         dependencies.autoConnectBootController.start()
++        // Meta Quest: Always-on / BOOT_COMPLETED often race CE unlock. When the main process
++        // starts (Always-on VpnService or UI), enqueue preferred/quick-connect reconnect.
++        if (dependencies.isTv.isMetaQuest()) {
++            AutoConnectOnBootWorker.enqueue(
++                androidx.work.WorkManager.getInstance(this),
++                replace = true
++            )
++        }
+         dependencies.autoLoginManager
+         dependencies.certificateRepository
+         dependencies.connectingUpdatesRecents
+diff --git a/app/src/main/java/com/protonvpn/android/redesign/app/ui/MainActivity.kt b/app/src/main/java/com/protonvpn/android/redesign/app/ui/MainActivity.kt
+index 197b457..c5d67d9 100644
+--- a/app/src/main/java/com/protonvpn/android/redesign/app/ui/MainActivity.kt
++++ b/app/src/main/java/com/protonvpn/android/redesign/app/ui/MainActivity.kt
+@@ -48,6 +48,10 @@ import androidx.lifecycle.lifecycleScope
+ import androidx.lifecycle.repeatOnLifecycle
+ import androidx.navigation.compose.rememberNavController
+ import com.protonvpn.android.BuildConfig
++import com.protonvpn.android.logging.LogCategory
++import com.protonvpn.android.redesign.recents.usecases.GetQuickConnectIntent
++import com.protonvpn.android.vpn.VpnConnectionManager
++import com.protonvpn.android.vpn.VpnStatusProviderUI
+ import com.protonvpn.android.R
+ import com.protonvpn.android.auth.ui.AccountViewModel
+ import com.protonvpn.android.auth.usecase.OnboardingEvent
+@@ -120,6 +124,12 @@ class MainActivity : VpnUiDelegateProvider, AppCompatActivity() {
+     lateinit var widgetActionHandler: WidgetActionHandler
+     @Inject
+     lateinit var streamingUpsellRestrictionsDialogTrigger: StreamingUpsellRestrictionsDialogTrigger
++    @Inject
++    lateinit var vpnConnectionManager: VpnConnectionManager
++    @Inject
++    lateinit var getQuickConnectIntent: GetQuickConnectIntent
++    @Inject
++    lateinit var vpnUiStatus: VpnStatusProviderUI
+ 
+     // public for now until there is need to bridge old code, as LocalVpnUiDelegate is not available in non-compose
+     lateinit var vpnActivityDelegate: VpnUiActivityDelegate
+@@ -131,7 +141,18 @@ class MainActivity : VpnUiDelegateProvider, AppCompatActivity() {
+         }
+ 
+         override suspend fun onReady() {
+-            // Handled in onCreate()
++            // Meta Quest: after reboot Always-on may arm before CE unlock / VPN user is ready.
++            // When the phone UI becomes ready, reconnect the preferred/quick-connect profile.
++            if (isTv.isMetaQuest() && !vpnUiStatus.isEstablishingOrConnected) {
++                ProtonLogger.logCustom(
++                    LogCategory.CONN,
++                    "MainActivity Quest ready: connecting preferred/quick-connect profile"
++                )
++                vpnConnectionManager.connectInBackground(
++                    getQuickConnectIntent(),
++                    ConnectTrigger.Auto("Quest preferred reconnect on ready")
++                )
++            }
+         }
+     }
+ 
+diff --git a/app/src/main/java/com/protonvpn/android/settings/data/EffectiveCurrentUserSettings.kt b/app/src/main/java/com/protonvpn/android/settings/data/EffectiveCurrentUserSettings.kt
+index 9401ede..13e4985 100644
+--- a/app/src/main/java/com/protonvpn/android/settings/data/EffectiveCurrentUserSettings.kt
++++ b/app/src/main/java/com/protonvpn/android/settings/data/EffectiveCurrentUserSettings.kt
+@@ -82,20 +82,21 @@ abstract class BaseApplyEffectiveUserSettings(
+     abstract fun getFlagsFlow(): Flow<SettingsFeatureFlagsFlow.Flags>
+ 
+     suspend operator fun invoke(rawSettings: LocalUserSettings): LocalUserSettings =
+-        applyRestrictions(rawSettings, currentUser.vpnUser(), isTv(), getFlags())
++        applyRestrictions(rawSettings, currentUser.vpnUser(), isTv(), isTv.isMetaQuest(), getFlags())
+ 
+     fun observe(rawSettings: LocalUserSettings): Flow<LocalUserSettings> =
+         combine(
+             currentUser.vpnUserFlow,
+             getFlagsFlow(),
+         ) { vpnUser, flags ->
+-            applyRestrictions(rawSettings, vpnUser, isTv(), flags)
++            applyRestrictions(rawSettings, vpnUser, isTv(), isTv.isMetaQuest(), flags)
+         }
+ 
+     protected fun applyRestrictions(
+         settings: LocalUserSettings,
+         vpnUser: VpnUser?,
+         isTv: Boolean,
++        isMetaQuest: Boolean,
+         flags: SettingsFeatureFlagsFlow.Flags,
+     ): LocalUserSettings {
+         val isUserPlusOrAbove = vpnUser?.isUserPlusOrAbove == true
+@@ -132,7 +133,14 @@ abstract class BaseApplyEffectiveUserSettings(
+             netShield = netShieldProtocol,
+             customDns = if (isUserPlusOrAbove) settings.customDns else CustomDnsSettings(false),
+             theme = settings.theme,
+-            tvAutoConnectOnBoot = if (isTv && flags.isTvAutoConnectEnabled) settings.tvAutoConnectOnBoot else false,
++            // Meta Quest: always enable boot auto-connect (preferred / quick-connect
++            // profile). Phone UI is forced on Quest, so the stock TV-only gate would
++            // leave AutoConnectBootReceiver disabled forever.
++            tvAutoConnectOnBoot = when {
++                isMetaQuest -> true
++                isTv && flags.isTvAutoConnectEnabled -> settings.tvAutoConnectOnBoot
++                else -> false
++            },
+             vpnAccelerator = effectiveVpnAccelerator,
+             splitTunneling = effectiveSplitTunneling,
+             ipV6Enabled = settings.ipV6Enabled,
+diff --git a/app/src/main/java/com/protonvpn/android/tv/IsTvCheck.kt b/app/src/main/java/com/protonvpn/android/tv/IsTvCheck.kt
+index e41177b..aeb778a 100644
+--- a/app/src/main/java/com/protonvpn/android/tv/IsTvCheck.kt
++++ b/app/src/main/java/com/protonvpn/android/tv/IsTvCheck.kt
+@@ -43,11 +43,33 @@ class IsTvCheck @Inject constructor(
+ ) {
+     private val wasLaunchedForTv: Boolean get() = appFeaturesPrefs.wasLaunchedForTv
+ 
+-    operator fun invoke() = wasLaunchedForTv || isTvByAppContext()
++    operator fun invoke(): Boolean {
++        // Meta Quest / Horizon OS: always use the phone MainActivity + email/password
++        // (and SSO) auth path — the same approach Proton Pass uses on Quest.
++        // QR / TvQrLoginActivity is not usable in the headset without TV mirroring.
++        if (appContext.isMetaQuestDevice()) {
++            clearStickyTvFlagsIfNeeded()
++            return false
++        }
++        return wasLaunchedForTv || isTvByAppContext()
++    }
+ 
+     fun onUiLaunched(isTvIntent: Boolean) {
+-        ProtonLogger.logCustom(LogCategory.APP, "launching UI, is TV intent: $isTvIntent")
+-        appFeaturesPrefs.wasLaunchedForTv = isTvIntent
++        // Never sticky-latch TV mode on Quest even if something starts TvMainActivity.
++        val quest = appContext.isMetaQuestDevice()
++        val effective = if (quest) false else isTvIntent
++        ProtonLogger.logCustom(LogCategory.APP, "launching UI, is TV intent: $effective (quest=$quest)")
++        appFeaturesPrefs.wasLaunchedForTv = effective
++        if (quest) {
++            appFeaturesPrefs.wasTvDetected = false
++        }
++    }
++
++    private fun clearStickyTvFlagsIfNeeded() {
++        if (wasLaunchedForTv || appFeaturesPrefs.wasTvDetected == true) {
++            appFeaturesPrefs.wasLaunchedForTv = false
++            appFeaturesPrefs.wasTvDetected = false
++        }
+     }
+ 
+     private fun isTvByAppContext(): Boolean {
+@@ -80,6 +102,39 @@ class IsTvCheck @Inject constructor(
+         }
+     }
+ 
++    /**
++     * Public Meta Quest / Horizon OS detection. Phone UI is forced via [invoke],
++     * but Quest still needs TV-style boot auto-connect + Always-on kill switch.
++     */
++    fun isMetaQuest(): Boolean = appContext.isMetaQuestDevice()
++
++    /**
++     * Meta Quest headsets (Quest 2/3/3S/Pro) report manufacturer Oculus and
++     * oculus.hardware.standalone_vr. Force the phone / email login UI — NOT
++     * TvMainActivity / TvQrLoginActivity — matching Proton Pass on Horizon OS.
++     *
++     * Quest Meta Quest patch — VoxHash Technologies / protonvpn-meta-quest.
++     */
++    private fun Context.isMetaQuestDevice(): Boolean {
++        val manufacturer = Build.MANUFACTURER.orEmpty()
++        val brand = Build.BRAND.orEmpty()
++        val model = Build.MODEL.orEmpty()
++        val device = Build.DEVICE.orEmpty().lowercase()
++        val questDevices = setOf(
++            "monterey", // original Quest
++            "hollywood", // Quest 2
++            "seacliff", // Quest Pro
++            "eureka",   // Quest 3
++            "panther",  // Quest 3S
++        )
++        return manufacturer.equals("Oculus", ignoreCase = true) ||
++            brand.equals("oculus", ignoreCase = true) ||
++            model.contains("Quest", ignoreCase = true) ||
++            device in questDevices ||
++            packageManager.hasSystemFeature("oculus.hardware.standalone_vr") ||
++            packageManager.hasSystemFeature("oculus.software.handtracking")
++    }
++
+     private fun Context.displayDiagonalApprox(): Float {
+         val defaultDisplay = (getSystemService(Context.WINDOW_SERVICE) as WindowManager).defaultDisplay
+         val realMetrics = DisplayMetrics()
+diff --git a/app/src/main/java/com/protonvpn/android/vpn/autoconnect/AutoConnectBootReceiver.kt b/app/src/main/java/com/protonvpn/android/vpn/autoconnect/AutoConnectBootReceiver.kt
+index 55df0d0..70b2da5 100644
+--- a/app/src/main/java/com/protonvpn/android/vpn/autoconnect/AutoConnectBootReceiver.kt
++++ b/app/src/main/java/com/protonvpn/android/vpn/autoconnect/AutoConnectBootReceiver.kt
+@@ -23,6 +23,8 @@ import android.content.BroadcastReceiver
+ import android.content.Context
+ import android.content.Intent
+ import androidx.work.WorkManager
++import com.protonvpn.android.logging.LogCategory
++import com.protonvpn.android.logging.ProtonLogger
+ import dagger.hilt.android.AndroidEntryPoint
+ import javax.inject.Inject
+ 
+@@ -32,7 +34,17 @@ class AutoConnectBootReceiver : BroadcastReceiver() {
+     @Inject lateinit var workManager: dagger.Lazy<WorkManager>
+ 
+     override fun onReceive(context: Context, intent: Intent) {
+-        if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
++        val action = intent.action
++        // BOOT_COMPLETED can run before credential-encrypted storage / VPN user is ready
++        // on Horizon OS. USER_UNLOCKED re-runs preferred/quick-connect after unlock.
++        if (action != Intent.ACTION_BOOT_COMPLETED && action != Intent.ACTION_USER_UNLOCKED) {
++            return
++        }
++
++        ProtonLogger.logCustom(
++            LogCategory.CONN,
++            "AutoConnectBootReceiver action=$action (enqueue preferred reconnect)"
++        )
+ 
+         // Firestick and some other TV devices put aggressive time constraints on this broadcast
+         // receiver so we're making it as lightweight as possible:
+@@ -40,6 +52,7 @@ class AutoConnectBootReceiver : BroadcastReceiver() {
+         // - not doing any actual work but delegating it (with delay) to work manager.
+         // NOTE: on firestick HD it still can take 30s for the broadcast receiver to even start so
+         // connection will be established with a significant delay.
+-        AutoConnectOnBootWorker.enqueue(workManager.get())
++        // REPLACE so USER_UNLOCKED can retry after an early BOOT_COMPLETED no-op.
++        AutoConnectOnBootWorker.enqueue(workManager.get(), replace = action == Intent.ACTION_USER_UNLOCKED)
+     }
+ }
+diff --git a/app/src/main/java/com/protonvpn/android/vpn/autoconnect/AutoConnectOnBootWorker.kt b/app/src/main/java/com/protonvpn/android/vpn/autoconnect/AutoConnectOnBootWorker.kt
+index c17f957..00148fd 100644
+--- a/app/src/main/java/com/protonvpn/android/vpn/autoconnect/AutoConnectOnBootWorker.kt
++++ b/app/src/main/java/com/protonvpn/android/vpn/autoconnect/AutoConnectOnBootWorker.kt
+@@ -29,17 +29,13 @@ import androidx.work.ForegroundInfo
+ import androidx.work.OneTimeWorkRequestBuilder
+ import androidx.work.WorkManager
+ import androidx.work.WorkerParameters
+-import com.protonvpn.android.auth.usecase.CurrentUser
+ import com.protonvpn.android.logging.LogCategory
+ import com.protonvpn.android.logging.ProtonLogger
+-import com.protonvpn.android.models.vpn.usecase.GetSmartProtocols
+ import com.protonvpn.android.notifications.NotificationHelper
++import com.protonvpn.android.redesign.recents.usecases.GetQuickConnectIntent
+ import com.protonvpn.android.settings.data.EffectiveCurrentUserSettings
+-import com.protonvpn.android.settings.data.LocalUserSettings
+-import com.protonvpn.android.tv.vpn.createIntentForDefaultProfile
+-import com.protonvpn.android.userstorage.ProfileManager
++import com.protonvpn.android.tv.IsTvCheck
+ import com.protonvpn.android.utils.Constants
+-import com.protonvpn.android.utils.ServerManager
+ import com.protonvpn.android.vpn.ConnectTrigger
+ import com.protonvpn.android.vpn.VpnConnectionManager
+ import com.protonvpn.android.vpn.VpnStatusProviderUI
+@@ -56,27 +52,26 @@ class AutoConnectOnBootWorker  @AssistedInject constructor(
+     private val vpnUiStatus: VpnStatusProviderUI,
+     private val notificationHelper: dagger.Lazy<NotificationHelper>,
+     private val vpnConnectionManager: dagger.Lazy<VpnConnectionManager>,
+-    private val getSmartProtocols: dagger.Lazy<GetSmartProtocols>,
+-    private val tvProfileManager: dagger.Lazy<ProfileManager>,
+-    private val serverManager: dagger.Lazy<ServerManager>,
+-    private val currentUser: dagger.Lazy<CurrentUser>,
++    private val getQuickConnectIntent: dagger.Lazy<GetQuickConnectIntent>,
++    private val isTv: IsTvCheck,
+ ) : CoroutineWorker(context, params) {
+ 
+     override suspend fun doWork(): Result {
+-        ProtonLogger.logCustom(LogCategory.CONN, "AutoConnectOnBootWorker start")
++        ProtonLogger.logCustom(LogCategory.CONN, "AutoConnectOnBootWorker start (quest=${isTv.isMetaQuest()})")
+         val settings = effectiveUserSettings.effectiveSettings.first()
+-        if (settings.tvAutoConnectOnBoot && !vpnUiStatus.isEstablishingOrConnected) {
++        val shouldAutoConnect = settings.tvAutoConnectOnBoot || isTv.isMetaQuest()
++        if (shouldAutoConnect && !vpnUiStatus.isEstablishingOrConnected) {
+             val haveVpnPermission = VpnService.prepare(context) == null
+             if (!haveVpnPermission) {
+                 ProtonLogger.logCustom(LogCategory.CONN, "AutoConnectOnBootWorker: no VPN permission, aborting")
+             } else {
+-                ProtonLogger.logCustom(LogCategory.CONN, "AutoConnectOnBootWorker connecting...")
++                ProtonLogger.logCustom(LogCategory.CONN, "AutoConnectOnBootWorker connecting preferred/quick-connect intent...")
+ 
+                 // Promote to foreground ASAP - it gives a higher chance for the work to complete before
+                 // being killed by the system, especially on firestick.
+                 setForeground(createForegroundInfo())
+ 
+-                connect(settings)
++                connectPreferred()
+             }
+         }
+         return Result.success()
+@@ -88,16 +83,10 @@ class AutoConnectOnBootWorker  @AssistedInject constructor(
+         ServiceInfo.FOREGROUND_SERVICE_TYPE_SYSTEM_EXEMPTED
+     )
+ 
+-    private suspend fun connect(settings: LocalUserSettings) {
+-        val profile = tvProfileManager.get().getDefaultOrFastest()
+-        serverManager.get().ensureLoaded()
+-        val intent = createIntentForDefaultProfile(
+-            serverManager.get(),
+-            currentUser.get(),
+-            settings.protocol,
+-            getSmartProtocols.get().invoke(),
+-            profile
+-        )
++    private suspend fun connectPreferred() {
++        // Use the same preferred/default connection the logged-in account selected
++        // in the phone UI (Fastest / Last / Recent) — matches Always-on reconnect.
++        val intent = getQuickConnectIntent.get()()
+         vpnConnectionManager.get().connectInBackground(
+             intent,
+             ConnectTrigger.Auto("Auto-connect on boot")
+@@ -105,7 +94,7 @@ class AutoConnectOnBootWorker  @AssistedInject constructor(
+     }
+ 
+     companion object {
+-        fun enqueue(workManager: WorkManager) {
++        fun enqueue(workManager: WorkManager, replace: Boolean = false) {
+             val request = OneTimeWorkRequestBuilder<AutoConnectOnBootWorker>()
+                 // Without additional delay work scheduled by boot receiver will not complete on
+                 // firestick and get killed by the system.
+@@ -115,9 +104,9 @@ class AutoConnectOnBootWorker  @AssistedInject constructor(
+             workManager
+                 .enqueueUniqueWork(
+                     "vpn_boot_startup",
+-                    ExistingWorkPolicy.KEEP,
++                    if (replace) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP,
+                     request
+                 )
+         }
+     }
+-}
+\ No newline at end of file
++}
