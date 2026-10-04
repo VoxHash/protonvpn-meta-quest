@@ -1,0 +1,13 @@
+downloads/*.apk
+downloads/e2e-*/
+downloads/*.png
+downloads/*.log
+downloads/ui.xml
+android-app/
+android-app/local.properties
+quest-launcher/local.properties
+quest-launcher/.gradle/
+quest-launcher/**/build/
+*.iml
+.DS_Store
+*.apk

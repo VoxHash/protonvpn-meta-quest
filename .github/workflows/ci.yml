@@ -1,0 +1,15 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Shellcheck-ish syntax
+        run: |
+          bash -n scripts/*.sh
+          test -f patches/0001-meta-quest-istvcheck.patch
+          test -f LICENSE

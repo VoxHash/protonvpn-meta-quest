@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.QuestLauncher" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">#16141c</item>
+        <item name="android:statusBarColor">#16141c</item>
+        <item name="colorPrimary">#6d4aff</item>
+    </style>
+</resources>
