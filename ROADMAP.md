@@ -14,16 +14,16 @@ Unofficial Meta Quest packaging for Proton VPN Android (GPL). Keep milestones sm
 - Companion launcher prefers `.quest` package; clearer missing-app message
 - CI script job checks auth + flavor patches (`tests/test_scripts.sh`)
 - Writable Android SDK resolver (`scripts/resolve-android-sdk.sh`) for Gradle / quest-launcher builds
+- SSO on Horizon docs — browser handoff / `protonvpn://…/sso/login` deep-link edge cases; email path preferred; PC assist when IdP stalls (`docs/sso-horizon.md`)
 
 ## Next
 
-1. **SSO on Horizon** — document browser handoff / deep-link edge cases (email path works; SSO often needs PC assist)
-2. **Upstream notes** — short CONTRIBUTING/docs blurb for ProtonVPN `IsTvCheck` Quest carve-out (what to upstream vs keep patched)
-3. **Install demo** — short GIF or linked video: sideload → email login → `configure-quest-hardening.sh`
-4. **Contributor UX** — point CONTRIBUTING at issue templates (Quest device, adb log, flavor/APK)
-5. **F-Droid honesty** — note that this is GPL sideload packaging, not an F-Droid listing (unless/until one exists)
-6. **CI APK artifacts** — optional upload of Quest APK when CI can assemble (heavy; needs SDK + JDK 17 cache; local release assets remain the primary download path)
-7. **Community link** — Matrix/Discord only when a real channel exists (no placeholder invite)
+1. **Upstream notes** — short CONTRIBUTING/docs blurb for ProtonVPN `IsTvCheck` Quest carve-out (what to upstream vs keep patched)
+2. **Install demo** — short GIF or linked video: sideload → email login → `configure-quest-hardening.sh`
+3. **Contributor UX** — point CONTRIBUTING at issue templates (Quest device, adb log, flavor/APK)
+4. **F-Droid honesty** — note that this is GPL sideload packaging, not an F-Droid listing (unless/until one exists)
+5. **CI APK artifacts** — optional upload of Quest APK when CI can assemble (heavy; needs SDK + JDK 17 cache; local release assets remain the primary download path)
+6. **Community link** — Matrix/Discord only when a real channel exists (no placeholder invite)
 
 ## Out of scope (for now)
 

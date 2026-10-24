@@ -7,9 +7,10 @@ Email auth (Proton Core, same as Pass):
 - `me.proton.core.auth.presentation.ui.AddAccountActivity`
 - `me.proton.core.auth.presentation.ui.LoginTwoStepActivity`
 - `me.proton.core.auth.presentation.ui.LoginActivity`
-- `me.proton.core.auth.presentation.ui.LoginSsoActivity`
+- `me.proton.core.auth.presentation.ui.LoginSsoActivity` — SSO; callback scheme `protonvpn` path `/sso/login` (see [sso-horizon.md](sso-horizon.md))
 
-TV/QR (not the Quest primary path): `com.protonvpn.android.tv.main.TvMainActivity` → `TvQrLoginActivity`
+TV/QR (not the Quest primary path): `com.protonvpn.android.tv.main.TvMainActivity` → `TvQrLoginActivity`  
+TV session-fork deep links (not SSO): `protonvpn://session-fork`, `https://account.proton.me/vpn/tv/code/…`
 
 Quest VPN package: `ch.protonvpn.android.quest` (`applicationIdSuffix` `.quest`)
 

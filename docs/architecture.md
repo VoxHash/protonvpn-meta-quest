@@ -1,6 +1,6 @@
 # Architecture
 
-Modeled on Proton Pass for Meta Quest (`proton.android.pass.quest`): phone `MainActivity` + core email/SSO auth activities — not Android TV / QR.
+Modeled on Proton Pass for Meta Quest (`proton.android.pass.quest`): phone `MainActivity` + core email/SSO auth activities — not Android TV / QR. SSO browser handoff / deep-link limits on Horizon: [sso-horizon.md](sso-horizon.md).
 
 ```
 Quest library / adb

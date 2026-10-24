@@ -30,7 +30,7 @@ Not affiliated with Proton AG or Meta Platforms. Proton VPN is a trademark of Pr
 ./scripts/e2e-quest.sh
 ```
 
-In the headset: sign in with Proton **email and password**. If you get “incorrect password” despite a known-good account, Horizon’s keyboard likely mangled symbols — focus the password field and run `PROTON_PASSWORD='…' ./scripts/quest-enter-password.sh` from this PC, then Connect and approve VPN permission.
+In the headset: sign in with Proton **email and password** (preferred). Org **SSO** may open but often needs PC assist for IdP / deep-link return — see [docs/sso-horizon.md](docs/sso-horizon.md). If you get “incorrect password” despite a known-good account, Horizon’s keyboard likely mangled symbols — focus the password field and run `PROTON_PASSWORD='…' ./scripts/quest-enter-password.sh` from this PC, then Connect and approve VPN permission.
 
 Arm reboot auto-connect + kill switch:
 

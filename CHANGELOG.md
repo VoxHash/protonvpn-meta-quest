@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- `docs/sso-horizon.md` — SSO on Quest: Custom Tabs / WebView handoff, `protonvpn://…/sso/login` deep-link edge cases, PC assist; linked from usage, FAQ, troubleshooting, API, docs index
+
 ## 1.3.0 — 2026-10-04
 
 ### Added

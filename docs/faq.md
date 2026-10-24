@@ -8,3 +8,6 @@ Official Proton APK disables `MainActivity` and exposes a `RoutingActivity` alia
 
 **Same Proton account?**  
 Yes — email/password or SSO for your Proton VPN account.
+
+**Does SSO work on Quest?**  
+Partially. Email/password is the reliable path. Org SSO uses the same `LoginSsoActivity` as phone Android, but Custom Tabs / WebView IdP handoff and the `protonvpn://…/sso/login` deep-link return often fail or need Quest Link + keyboard assist. Details: [sso-horizon.md](sso-horizon.md).

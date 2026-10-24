@@ -5,6 +5,7 @@
 - [Installation](installation.md)
 - [Configuration](configuration.md)
 - [Usage](usage.md)
+- [SSO on Horizon](sso-horizon.md) (browser handoff / deep-link edge cases)
 - [CLI / scripts](cli.md)
 - [API / architecture](api.md)
 - [Architecture](architecture.md)
